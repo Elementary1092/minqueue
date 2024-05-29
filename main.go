@@ -110,7 +110,7 @@ func (q *QueueManager) PopFrom(ctx context.Context, queueName string) string {
 		case <-ctx.Done():
 			queue.wait.Unlock()
 			return ""
-		case <-time.After(time.Second): // used to check the length of the queue regularly
+		case <-time.After(time.Second): // used to check the length of the queue regularly and reduce the load on CPU
 			continue
 		}
 	}

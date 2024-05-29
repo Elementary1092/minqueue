@@ -108,16 +108,16 @@ func (q *QueueManager) PopFrom(ctx context.Context, queueName string) string {
 	queue, _ := mappedQueue.(*QueueWithWait) // to satisfy the linter
 
 	queue.wait.Lock()
+	defer queue.wait.Unlock()
+	
 	for queue.data.Len() == 0 {
 		select {
 		case <-ctx.Done():
-			queue.wait.Unlock()
 			return ""
 		case <-time.After(time.Second): // used to check the length of the queue regularly and reduce the load on CPU
 			continue
 		}
 	}
-	queue.wait.Unlock()
 
 	queue.mu.Lock()
 	defer queue.mu.Unlock()

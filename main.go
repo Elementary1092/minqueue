@@ -65,7 +65,6 @@ func FromQueue(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusInternalServerError)
 		return
 	}
-	w.WriteHeader(http.StatusOK)
 }
 
 func ToQueue(w http.ResponseWriter, r *http.Request) {
@@ -78,6 +77,10 @@ func ToQueue(w http.ResponseWriter, r *http.Request) {
 	}
 
 	data := urlQuery.Get("v")
+	if data == "" {
+		w.WriteHeader(http.StatusBadRequest)
+		return
+	}
 	manager.PushTo(queueName, data)
 
 	w.WriteHeader(http.StatusOK)

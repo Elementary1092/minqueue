@@ -26,9 +26,7 @@ func main() {
 
 	http.HandleFunc("GET /{queue}", FromQueue)
 	http.HandleFunc("PUT /{queue}", ToQueue)
-	if err := http.ListenAndServe(":"+strconv.FormatUint(port, 10), nil); err != nil {
-		return
-	}
+	_ = http.ListenAndServe(":"+strconv.FormatUint(port, 10), nil)
 }
 
 var manager = &QueueManager{queues: sync.Map{}}
@@ -62,8 +60,12 @@ func FromQueue(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	_, err := w.Write([]byte(data))
+	if err != nil {
+		w.WriteHeader(http.StatusInternalServerError)
+		return
+	}
 	w.WriteHeader(http.StatusOK)
-	w.Write([]byte(data))
 }
 
 func ToQueue(w http.ResponseWriter, r *http.Request) {

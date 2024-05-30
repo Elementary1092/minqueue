@@ -34,7 +34,7 @@ var manager = &QueueManager{queues: sync.Map{}}
 func FromQueue(w http.ResponseWriter, r *http.Request) {
 	queueName := r.PathValue("queue")
 
-	timeout := 0
+	timeout := int64(0)
 	urlQuery := r.URL.Query() // query is parsed on every call so, saving query parsing result to avoid such behaviour
 	if urlQuery.Has("timeout") {
 		timeoutRaw := urlQuery.Get("timeout")
@@ -52,7 +52,7 @@ func FromQueue(w http.ResponseWriter, r *http.Request) {
 		timeout = t
 	}
 
-	ctx, cancel = context.WithTimeout(r.Context(), time.Duration(timeout)*time.Second)
+	ctx, cancel := context.WithTimeout(r.Context(), time.Duration(timeout)*time.Second)
 	defer cancel()
 
 	data := manager.PopFrom(ctx, queueName)

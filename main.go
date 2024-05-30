@@ -91,9 +91,56 @@ type Queue struct {
 	mu   sync.Mutex
 }
 
+func (q *Queue) PopFront() string {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	data := q.data.Front()
+	if data == nil {
+		return ""
+	}
+
+	q.data.Remove(data)
+
+	return data.Value.(string) // should never panic because only strings are added to the queue
+}
+
+func (q *Queue) PushBack(value string) {
+	q.mu.Lock()
+	defer q.mu.Unlock()
+
+	q.data.PushBack(value)
+}
+
 type QueueWithWait struct {
 	*Queue
 	wait sync.Mutex
+}
+
+func (q *QueueWithWait) PopFront(ctx context.Context) string {
+	select {
+	case <-ctx.Done():
+		return q.Queue.PopFront()
+	default:
+	}
+
+	q.wait.Lock()
+	defer q.wait.Unlock()
+
+	for q.data.Len() == 0 {
+		select {
+		case <-ctx.Done():
+			return ""
+		case <-time.After(time.Second): // used to check the length of the queue regularly and reduce the load on CPU
+			continue
+		}
+	}
+
+	return q.Queue.PopFront()
+}
+
+func (q *QueueWithWait) PushBack(value string) {
+	q.Queue.PushBack(value)
 }
 
 type QueueManager struct {
@@ -107,29 +154,7 @@ func (q *QueueManager) PopFrom(ctx context.Context, queueName string) string {
 	}
 	queue, _ := mappedQueue.(*QueueWithWait) // to satisfy the linter
 
-	queue.wait.Lock()
-	defer queue.wait.Unlock()
-	
-	for queue.data.Len() == 0 {
-		select {
-		case <-ctx.Done():
-			return ""
-		case <-time.After(time.Second): // used to check the length of the queue regularly and reduce the load on CPU
-			continue
-		}
-	}
-
-	queue.mu.Lock()
-	defer queue.mu.Unlock()
-
-	data := queue.data.Front()
-	if data == nil {
-		return ""
-	}
-
-	queue.data.Remove(data)
-
-	return data.Value.(string) // should never panic because only strings are added to the queue
+	return queue.PopFront(ctx)
 }
 
 func (q *QueueManager) PushTo(queueName string, data string) {
@@ -141,8 +166,5 @@ func (q *QueueManager) PushTo(queueName string, data string) {
 	}
 	queue, _ := mapQueue.(*QueueWithWait) // to satisfy the linter
 
-	queue.mu.Lock()
-	defer queue.mu.Unlock()
-
-	queue.data.PushBack(data)
+	queue.PushBack(data)
 }
